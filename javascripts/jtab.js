@@ -27,9 +27,30 @@
  * the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+var shouldDrawSymbolForOpenStrings = false;
+
+var openAndMutedStringFontSize = "10px";
+var fingeringFontSize = "16px";
+	
+var nutWidth = 6.0;
+var stringSpacing = 32;
+var fretSpacing = 32;
+var noteRadius = 12;
+
+var fretStrokeWidth = 3;
+var stringStrokeWidth = 1;
+
+var numberOfStringsDrawn = 6;
+var numberOfFretsDrawn = 5;
+
+
+
+
+
 //
 // define the jtab class
 //
+
 
 var jtab = {
   Version : '1.3.1',
@@ -562,11 +583,11 @@ Raphael.fn.margin_right = 10;
 
 Raphael.fn.current_offset = Raphael.fn.margin_left;
 
-Raphael.fn.string_spacing = 16;
-Raphael.fn.strings_drawn = 6;
-Raphael.fn.fret_spacing = 16;
-Raphael.fn.frets_drawn = 4;
-Raphael.fn.note_radius = 7;
+Raphael.fn.string_spacing = stringSpacing;
+Raphael.fn.strings_drawn = numberOfStringsDrawn;
+Raphael.fn.fret_spacing = fretSpacing;
+Raphael.fn.frets_drawn = numberOfFretsDrawn;
+Raphael.fn.note_radius = noteRadius;
 
 Raphael.fn.fret_width = Raphael.fn.string_spacing * ( Raphael.fn.strings_drawn - 1 );
 Raphael.fn.fret_height = Raphael.fn.fret_spacing * (Raphael.fn.frets_drawn + 0.5);
@@ -585,7 +606,6 @@ Raphael.fn.total_height = Raphael.fn.tab_top + Raphael.fn.tab_height + Raphael.f
 Raphael.fn.color = "#000";
 Raphael.fn.fingering_text_color = "#fff";
 Raphael.fn.tab_text_color = "#000";
-
 
 // debug helper - puts grid marks on the rendered image
 Raphael.fn.debug_grid = function (width) {
@@ -622,24 +642,26 @@ Raphael.fn.chord_fretboard = function ( position, chord_name ) {
   // conventional fret labels
   var fret_labels = [ '', '', '', 'III', '', 'V', '', 'VII', '', 'IX', '', '', 'XII', '', '', 'XV', '', 'XVII', '', 'XIX', '', 'XXI', '' ];
   // alternative friendly fret labels. Currently disabled, maybe bring these back as a configurable option?
-  // var fret_labels = [ '', '1fr', '2fr', '3fr', '4fr', '5fr', '6fr', '7fr', '8fr', '9fr', '10fr', '11fr', '12fr', '13fr', '14fr', '15fr', '16fr', '17fr', '18fr', '19fr', '20fr', '21fr', '' ];
+  // fret_labels = [ '', '', '', '3fr', '', '5fr', '', '7fr', '', '', '10fr', '', '12fr', '', '', '15fr', '', '17fr', '', '', '20fr', '', '' ];
 
   this.text( // chord name
     fret_left + 2.5 * this.string_spacing,
     this.margin_top - 20,
     chord_name).attr({fill: this.tab_text_color, "font-size":"20px"});
 
-  var stroke_width = position == 0 ? 3 : 0  // nut
+  var stroke_width = position == 0 ? nutWidth : 0  // nut
   var chord_fretboard_path = this.path(this.svg_params(fret_left,this.margin_top,this.string_spacing * (this.strings_drawn - 1),0))
         chord_fretboard_path.attr({stroke: this.color, "stroke-width":stroke_width })
 
   for (var i = 0; i <= this.frets_drawn; i++ ) { // frets
 
-    this.path(this.svg_params(fret_left,this.margin_top + (i * this.fret_spacing),this.string_spacing * (this.strings_drawn - 1), 0))
+	// draw the frets
+    this.path(this.svg_params(fret_left,this.margin_top + (i * this.fret_spacing),this.string_spacing * (this.strings_drawn - 1), 0)).attr({stroke: this.tab_text_color, "stroke-width": fretStrokeWidth})
 
     pos = ( fret_labels[ position + i ] === undefined ) ? '' : fret_labels[ position + i ];
 
-    if ( pos.length > 0 ) { // draw fret position
+    var startingFret = position - this.frets_drawn;
+    if ( pos.length > 0 && position > 0 && i > startingFret) { // draw fret position
       this.text(
           fret_left + this.fret_width + this.string_spacing * 1.0,
           this.margin_top + ( ( i - 0.5 ) * this.fret_spacing),
@@ -647,7 +669,8 @@ Raphael.fn.chord_fretboard = function ( position, chord_name ) {
     }
   }
   for (var i = 0; i < this.strings_drawn; i++ ) {
-    this.path(this.svg_params(fret_left + (i * this.string_spacing),this.margin_top,0, this.fret_spacing * (this.frets_drawn + 0.5)))  // strings
+  	// draw the strings
+    this.path(this.svg_params(fret_left + (i * this.string_spacing),this.margin_top,0, this.fret_spacing * (this.frets_drawn + 0.5))).attr({stroke: this.tab_text_color, "stroke-width": stringStrokeWidth})
   }
   this.tab_extend(this.chord_width); // extend the tab if present
 }
@@ -728,10 +751,13 @@ Raphael.fn.chord_note = function (position, string_number, note) {
 
   if (fret_number < 0 ) {
     // muted/not played
-    this.text(fret_left + (string_number - 1) * this.string_spacing, this.margin_top - 8, "x").attr({stroke: this.tab_text_color, "font-size":"9px"});
+    this.text(fret_left + (string_number - 1) * this.string_spacing, this.margin_top - 8, "x").attr({stroke: this.tab_text_color, "font-size":openAndMutedStringFontSize});
   } else if (fret_number == 0 ) {
     // open
-    this.text(fret_left + (string_number - 1) * this.string_spacing, this.margin_top - 8, "o").attr({stroke: this.tab_text_color, "font-size":"9px"});
+    if (shouldDrawSymbolForOpenStrings) {
+		this.text(fret_left + (string_number - 1) * this.string_spacing, this.margin_top - 8, "o").attr({stroke: this.tab_text_color, "font-size":openAndMutedStringFontSize});
+    };
+    
   } else {
     var fret_dy = (fret_number - position - 0.5) * this.fret_spacing;
     //var circle =
@@ -740,7 +766,7 @@ Raphael.fn.chord_note = function (position, string_number, note) {
       this.margin_top + fret_dy, this.note_radius).attr({stroke: this.color, fill: this.color});
     if ( ! (note[1] === undefined) ) {
       this.text( fret_left + (string_number - 1) * this.string_spacing,
-      this.margin_top + fret_dy, note[1] ).attr({fill: this.fingering_text_color, "font-size":"12px"});
+      this.margin_top + fret_dy, note[1] ).attr({fill: this.fingering_text_color, "font-size":fingeringFontSize});
     }
   }
 
@@ -873,9 +899,14 @@ Raphael.fn.render_token = function (token) {
   if ( c.isValid ) { // draw chord
     var chord = c.chordArray;
     // this.chord_fretboard(chord[0], c.fullChordName );
-    this.chord_fretboard(chord[0], c.chordName );
+    var startingFret = 0;
+
+    if (chord[0] > 3) {
+    	startingFret = chord[0];
+    };
+    this.chord_fretboard(startingFret, c.chordName );
     for (var i = 1; i < chord.length ; i++) {
-      this.chord_note(chord[0], i, chord[i]);
+      this.chord_note(startingFret, i, chord[i]);
     }
     this.increment_offset();
 
